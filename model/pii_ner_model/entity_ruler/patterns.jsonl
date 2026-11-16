@@ -1,0 +1,13 @@
+{"label":"EMAIL","pattern":[{"TEXT":{"REGEX":"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9.-]+"}}]}
+{"label":"PHONE_NUM","pattern":[{"TEXT":{"REGEX":"[6-9]\\d{9}"}}]}
+{"label":"PHONE_NUM","pattern":[{"TEXT":"+91"},{"TEXT":{"REGEX":"\\d{10}"}}]}
+{"label":"PHONE_NUM","pattern":[{"TEXT":{"REGEX":"\\+91"},"OP":"?"},{"TEXT":{"REGEX":"[6-9]\\d{9}"}}]}
+{"label":"PHONE_NUM","pattern":[{"TEXT":{"REGEX":"\\(\\d{3}\\)"}},{"TEXT":{"REGEX":"\\d{3}-\\d{4}"}}]}
+{"label":"PHONE_NUM","pattern":[{"TEXT":{"REGEX":"\\d{3}-\\d{3}-\\d{4}"}}]}
+{"label":"PHONE_NUM","pattern":[{"TEXT":{"REGEX":"\\d{5}-\\d{5}"}}]}
+{"label":"URL_PERSONAL","pattern":[{"TEXT":{"REGEX":"https?://(?!(?:doi\\.org|dx\\.doi\\.org|arxiv\\.org|pubmed|ncbi|orcid\\.org|creativecommons|ieee\\.org|springer|elsevier|wiley|acm\\.org|researchgate|academia\\.edu|github\\.com|wikipedia))[^\\s]+"}}]}
+{"label":"URL_PERSONAL","pattern":[{"TEXT":{"REGEX":"www\\.[^\\s]+"}}]}
+{"label":"ID_NUM","pattern":[{"TEXT":{"REGEX":"\\d{4}"}},{"TEXT":{"REGEX":"\\d{4}"}},{"TEXT":{"REGEX":"\\d{4}"}}]}
+{"label":"ID_NUM","pattern":[{"TEXT":{"REGEX":"\\d{12}"}}]}
+{"label":"ID_NUM","pattern":[{"TEXT":{"REGEX":"[A-Z]{5}[0-9]{4}[A-Z]"}}]}
+{"label":"ID_NUM","pattern":[{"TEXT":{"REGEX":"^\\d{6,10}$"}}]}
