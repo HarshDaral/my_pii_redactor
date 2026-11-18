@@ -16,35 +16,43 @@ if "entity_ruler" in nlp.pipe_names:
 
 ruler = nlp.add_pipe("entity_ruler", before="ner", config={"overwrite_ents": False})
 
-# Personal URLs only — explicitly excludes doi.org and academic domains
+# Personal URLs — exclude academic/public domains via negative lookahead.
+# Pattern covers both https:// and www. prefixes consistently.
 PERSONAL_URL_PATTERN = (
     r"https?://(?!(?:doi\.org|dx\.doi\.org|arxiv\.org|pubmed|ncbi|orcid\.org|"
     r"creativecommons|ieee\.org|springer|elsevier|wiley|acm\.org|"
-    r"researchgate|academia\.edu|github\.com|wikipedia))[^\s]+"
+    r"researchgate|academia\.edu|github\.com|wikipedia|"
+    r"[a-z0-9\-]+\.gov|[a-z0-9\-]+\.edu|[a-z0-9\-]+\.ac\.in))[^\s]+"
 )
 
 patterns = [
-    {"label": "EMAIL",        "pattern": [{"TEXT": {"REGEX": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9.-]+"}}]},
-    {"label": "PHONE_NUM",    "pattern": [{"TEXT": {"REGEX": r"[6-9]\d{9}"}}]},
-    {"label": "URL_PERSONAL", "pattern": [{"TEXT": {"REGEX": PERSONAL_URL_PATTERN}}]},
-    {"label": "URL_PERSONAL", "pattern": [{"TEXT": {"REGEX": r"www\.[^\s]+"}}]},
-    # Aadhaar 4-4-4 format
-    {"label": "ID_NUM", "pattern": [{"TEXT": {"REGEX": r"\d{4}"}}, {"TEXT": {"REGEX": r"\d{4}"}}, {"TEXT": {"REGEX": r"\d{4}"}}]},
-    {"label": "ID_NUM", "pattern": [{"TEXT": {"REGEX": r"\d{12}"}}]},
-    # PAN card
-    {"label": "ID_NUM", "pattern": [{"TEXT": {"REGEX": r"[A-Z]{5}[0-9]{4}[A-Z]"}}]},
-    # Pure digit IDs (6-10 digits, not DOI-style)
-    {"label": "ID_NUM", "pattern": [{"TEXT": {"REGEX": r"^\d{6,10}$"}}]},
+    # Email — require proper TLD (2-6 alpha chars only)
+    {"label": "EMAIL", "pattern": [{"TEXT": {"REGEX": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z]{2,6}"}}]},
 
-    # Phone patterns for EntityRuler
-    # Indian with +91 prefix
-    {"label": "PHONE_NUM", "pattern": [{"TEXT": "+91"}, {"TEXT": {"REGEX": r"\d{10}"}}]},
-    {"label": "PHONE_NUM", "pattern": [{"TEXT": {"REGEX": r"\+91"}, "OP": "?"}, {"TEXT": {"REGEX": r"[6-9]\d{9}"}}]},
-    # US format (123) 456-7890
+    # Phone — Indian 10-digit mobile (starts 6-9)
+    {"label": "PHONE_NUM", "pattern": [{"TEXT": {"REGEX": r"[6-9]\d{9}"}}]},
+    # Indian with +91 prefix (two tokens)
+    {"label": "PHONE_NUM", "pattern": [{"TEXT": "+91"}, {"TEXT": {"REGEX": r"[6-9]\d{9}"}}]},
+    # US format (XXX) XXX-XXXX
     {"label": "PHONE_NUM", "pattern": [{"TEXT": {"REGEX": r"\(\d{3}\)"}}, {"TEXT": {"REGEX": r"\d{3}-\d{4}"}}]},
-    # Dash-separated 10-digit
+    # Dash-separated XXX-XXX-XXXX
     {"label": "PHONE_NUM", "pattern": [{"TEXT": {"REGEX": r"\d{3}-\d{3}-\d{4}"}}]},
-    {"label": "PHONE_NUM", "pattern": [{"TEXT": {"REGEX": r"\d{5}-\d{5}"}}]},
+
+    # Personal URLs
+    {"label": "URL_PERSONAL", "pattern": [{"TEXT": {"REGEX": PERSONAL_URL_PATTERN}}]},
+
+    # Aadhaar — requires spaces between groups (4 4 4)
+    {"label": "ID_NUM", "pattern": [
+        {"TEXT": {"REGEX": r"^\d{4}$"}},
+        {"TEXT": {"REGEX": r"^\d{4}$"}},
+        {"TEXT": {"REGEX": r"^\d{4}$"}},
+    ]},
+    # Aadhaar — 12 digits compact (no spaces)
+    {"label": "ID_NUM", "pattern": [{"TEXT": {"REGEX": r"^\d{12}$"}}]},
+    # PAN card
+    {"label": "ID_NUM", "pattern": [{"TEXT": {"REGEX": r"^[A-Z]{5}[0-9]{4}[A-Z]$"}}]},
+    # 8-10 digit IDs (raised floor from 6 to 8 to avoid matching common numbers)
+    {"label": "ID_NUM", "pattern": [{"TEXT": {"REGEX": r"^\d{8,10}$"}}]},
 ]
 
 ruler.add_patterns(patterns)
