@@ -42,23 +42,33 @@ REGEX_PATTERNS = {
         r"\b[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z]{2,6}\b"
     ),
 
-    # Phone numbers — requires word boundaries to avoid matching inside larger numbers
+    # Phone numbers
+    # +91 branch handles:  +91 9876543210 / +91-9876543210 / +919876543210
+    #                      + 91 9876543210 (PDF extraction sometimes inserts a space after +)
+    #                      +91 98765 43210 (5+5 split common in India)
     "PHONE_NUM": re.compile(
-        r"(?<!\d)"                                         # no digit immediately before
+        r"(?<![+\d])"                                      # not preceded by another digit or +
         r"(?:"
-        # Indian 10-digit with optional +91 prefix
-        r"(?:\+91[\s\-]?)?[6-9]\d{9}"
+        # +91 prefix (with optional space after +, and optional separator before number)
+        r"\+\s?91[\s\-]?[6-9]\d{4}[\s\-]?\d{5}"          # +91 XXXXX XXXXX (5+5 or 10 together)
         r"|"
-        # International: +CC then structured number (requires non-digit end)
+        r"\+\s?91[\s\-]?[6-9]\d{9}"                       # +91 XXXXXXXXXX (10 together)
+        r"|"
+        # Bare Indian 10-digit mobile (starts 6-9), no +91 prefix
+        r"(?<!\d)[6-9]\d{4}[\s\-]?\d{5}(?!\d)"            # XXXXX XXXXX split
+        r"|"
+        r"(?<!\d)[6-9]\d{9}(?!\d)"                         # 10 digits together
+        r"|"
+        # International: +CC separator structured number
         r"\+\d{1,3}[\s\-]\(?\d{2,4}\)?[\s\-]\d{3,4}[\s\-]\d{3,4}"
         r"|"
-        # US/Canada with separators: (XXX) XXX-XXXX or XXX-XXX-XXXX or XXX.XXX.XXXX
-        # Requires separators to be consistent (all same char) to avoid matching decimals
-        r"\(?\d{3}\)[\s]\d{3}[\s\-]\d{4}"               # (XXX) XXX-XXXX
+        # US/Canada: (XXX) XXX-XXXX
+        r"\(\d{3}\)\s\d{3}[\s\-]\d{4}"
         r"|"
-        r"\d{3}\-\d{3}\-\d{4}"                           # XXX-XXX-XXXX
+        # US/Canada: XXX-XXX-XXXX
+        r"\d{3}\-\d{3}\-\d{4}"
         r")"
-        r"(?!\d)",                                         # no digit immediately after
+        r"(?![\d\-])",                                     # not followed by another digit or dash
     ),
 
     "AADHAAR": re.compile(r"(?<!\d)\d{4}\s\d{4}\s\d{4}(?!\d)"),  # requires spaces as separators
@@ -328,11 +338,47 @@ def detect_pii(nlp, text: str) -> list[tuple[int, int, str]]:
         end   = start + len(prev)
         name_above.append((start, end, "NAME_STUDENT"))
 
-    # ── Layer 4: Regex ────────────────────────────────────────────────────────
+    # ── Layer 4: Label-prefixed name heuristic ───────────────────────────────
+    # Catches names that follow explicit PII field labels:
+    # "Name: Harsh Daral", "Author: Anjali Sharma", "Submitted by Rahul Kumar"
+    # Uses two sub-patterns: Title-Case names and ALL-CAPS names.
+    label_prefixed = []
+    _label_title = re.compile(
+        r"(?:(?:^|\n)\s*)"
+        r"(?:Name|Student|Author|Submitted\s+by|Prepared\s+by|Written\s+by|"
+        r"Candidate|Contact|By|From|Regards?)"
+        r"[\s:,]*"
+        r"([A-Z][a-zA-Z'\-]+(?:\s+[A-Z][a-zA-Z'\-]+){0,3})",
+        re.MULTILINE,
+    )
+    _label_caps = re.compile(
+        r"(?:(?:^|\n)\s*)"
+        r"(?:Name|Student|Author|Submitted\s+by|Prepared\s+by|Written\s+by|"
+        r"NAME|STUDENT|AUTHOR|SUBMITTED\s+BY|PREPARED\s+BY|WRITTEN\s+BY|"
+        r"Candidate|Contact|By|From|Regards?)"
+        r"[\s:,]*"
+        r"([A-Z]{2,}(?:\s+[A-Z]{2,}){0,3})",
+        re.MULTILINE,
+    )
+    for pattern in (_label_title, _label_caps):
+        for m in pattern.finditer(text):
+            candidate = m.group(1).strip()
+            # For label-prefixed names, allow ALL-CAPS (e.g. "Written by HARSH DARAL")
+            # by checking validity without the isupper guard
+            words = candidate.lower().split()
+            if any(w.strip('.,;:()[]"\'-') in _PERSON_BLOCKLIST for w in words):
+                continue
+            if any(c.isdigit() for c in candidate):
+                continue
+            if len(words) > 4 or len(words) == 0:
+                continue
+            label_prefixed.append((m.start(1), m.end(1), "NAME_STUDENT"))
+
+    # ── Layer 5: Regex ────────────────────────────────────────────────────────
     regex_spans = _collect_regex_matches(text)
 
     # NER spans go first so they win overlap resolution over regex
-    all_spans = ner_spans + general_spans + name_above + regex_spans
+    all_spans = ner_spans + general_spans + name_above + label_prefixed + regex_spans
     return _merge_spans(all_spans)
 
 

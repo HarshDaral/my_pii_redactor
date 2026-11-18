@@ -29,14 +29,17 @@ patterns = [
     # Email — require proper TLD (2-6 alpha chars only)
     {"label": "EMAIL", "pattern": [{"TEXT": {"REGEX": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z]{2,6}"}}]},
 
-    # Phone — Indian 10-digit mobile (starts 6-9)
-    {"label": "PHONE_NUM", "pattern": [{"TEXT": {"REGEX": r"[6-9]\d{9}"}}]},
-    # Indian with +91 prefix (two tokens)
-    {"label": "PHONE_NUM", "pattern": [{"TEXT": "+91"}, {"TEXT": {"REGEX": r"[6-9]\d{9}"}}]},
+    # Phone — Indian 10-digit mobile (starts 6-9), no prefix
+    {"label": "PHONE_NUM", "pattern": [{"TEXT": {"REGEX": r"^[6-9]\d{9}$"}}]},
+    # Indian with +91 prefix (two or three tokens: '+91' '9876543210' or '+' '91' '9876543210')
+    {"label": "PHONE_NUM", "pattern": [{"TEXT": "+91"}, {"TEXT": {"REGEX": r"^[6-9]\d{9}$"}}]},
+    {"label": "PHONE_NUM", "pattern": [{"TEXT": "+"}, {"TEXT": "91"}, {"TEXT": {"REGEX": r"^[6-9]\d{9}$"}}]},
+    # +91 with 5+5 split: '+91' '98765' '43210'
+    {"label": "PHONE_NUM", "pattern": [{"TEXT": "+91"}, {"TEXT": {"REGEX": r"^[6-9]\d{4}$"}}, {"TEXT": {"REGEX": r"^\d{5}$"}}]},
     # US format (XXX) XXX-XXXX
-    {"label": "PHONE_NUM", "pattern": [{"TEXT": {"REGEX": r"\(\d{3}\)"}}, {"TEXT": {"REGEX": r"\d{3}-\d{4}"}}]},
+    {"label": "PHONE_NUM", "pattern": [{"TEXT": {"REGEX": r"^\(\d{3}\)$"}}, {"TEXT": {"REGEX": r"^\d{3}-\d{4}$"}}]},
     # Dash-separated XXX-XXX-XXXX
-    {"label": "PHONE_NUM", "pattern": [{"TEXT": {"REGEX": r"\d{3}-\d{3}-\d{4}"}}]},
+    {"label": "PHONE_NUM", "pattern": [{"TEXT": {"REGEX": r"^\d{3}-\d{3}-\d{4}$"}}]},
 
     # Personal URLs
     {"label": "URL_PERSONAL", "pattern": [{"TEXT": {"REGEX": PERSONAL_URL_PATTERN}}]},
